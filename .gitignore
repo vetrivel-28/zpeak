@@ -1,13 +1,19 @@
+# Reports
+*_report.txt
+database_audit_report.txt
+before_after_report.txt
+
+# Python
 __pycache__/
-*.py[cod]
-*.log
-*.db-wal
+*.pyc
+
+# Database backups
 *.db-shm
-.venv/
-venv/
-env/
+*.db-wal
+
+# IDE
 .vscode/
 .idea/
-.DS_Store
-Thumbs.db
-.streamlit/cache/
+
+# Logs
+*.log

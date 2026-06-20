@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="popup.css">
+  <title>Settings - Meeting Knowledge Assistant</title>
+  <style>
+    body { padding: 30px; width: 400px; margin: 0 auto; }
+    h1 { color: #14B8A6; font-size: 24px; margin-bottom: 20px; }
+    .status { margin-top: 10px; font-size: 14px; color: #5EEAD4; }
+  </style>
+</head>
+<body>
+  <h1>Settings</h1>
+  <div class="result-container">
+    <label style="display:block; margin-bottom: 8px; color: #94A3B8;">Backend URL</label>
+    <div class="input-group">
+      <input type="text" id="backend-url" placeholder="http://127.0.0.1:8000">
+    </div>
+    <button id="btn-save" class="btn btn-primary full-width">Save Settings</button>
+    <div id="status" class="status hidden">Settings saved!</div>
+  </div>
+  <script src="options.js"></script>
+</body>
+</html>

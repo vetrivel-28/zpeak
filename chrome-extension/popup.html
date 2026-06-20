@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="popup.css">
+  <title>Meeting Knowledge Assistant</title>
+</head>
+<body>
+  <div class="header">
+    <img src="icons/icon48.png" alt="Logo" class="logo">
+    <h2>Term Explainer</h2>
+  </div>
+  
+  <div id="health-banner" class="banner banner-offline hidden">
+    <strong>Backend Offline</strong><br>
+    Please start: <code>uvicorn api.main:app --reload</code>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-target="tab-search">Search</button>
+    <button class="tab-btn" data-target="tab-analyzer">Analyzer</button>
+  </div>
+
+  <!-- Search Tab -->
+  <div id="tab-search" class="tab-content active">
+    <div class="input-group">
+      <input type="text" id="term-input" placeholder="Enter term (e.g. LangGraph)...">
+      <button id="btn-explain" class="btn btn-primary">Explain</button>
+    </div>
+    
+    <div id="search-result" class="result-container hidden">
+      <!-- Search result rendered here -->
+    </div>
+  </div>
+
+  <!-- Analyzer Tab -->
+  <div id="tab-analyzer" class="tab-content">
+    <textarea id="transcript-input" placeholder="Paste meeting transcript here..."></textarea>
+    <button id="btn-analyze" class="btn btn-primary full-width">Analyze Transcript</button>
+    
+    <div id="analyze-loader" class="loader-container hidden">
+      <div class="loader"></div>
+      <p>Analyzing transcript...</p>
+    </div>
+
+    <div id="analyze-results" class="analyzer-results hidden">
+      <!-- Collapsible cards rendered here -->
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
