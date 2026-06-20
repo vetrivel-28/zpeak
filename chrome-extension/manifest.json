@@ -11,7 +11,9 @@
   ],
   "host_permissions": [
     "<all_urls>",
-    "http://127.0.0.1:8000/*"
+    "http://127.0.0.1:8000/*",
+    "https://meet.google.com/*",
+    "https://teams.microsoft.com/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -21,6 +23,11 @@
       "matches": ["<all_urls>"],
       "css": ["tooltip.css"],
       "js": ["content.js"]
+    },
+    {
+      "matches": ["*://meet.google.com/*", "*://*.teams.microsoft.com/*", "*://teams.microsoft.com/*"],
+      "css": ["content/overlay.css"],
+      "js": ["content/overlay.js", "content/live_caption_monitor.js"]
     }
   ],
   "action": {

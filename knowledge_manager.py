@@ -3,11 +3,20 @@ import logging
 from datetime import date
 from detect_terms import detect_terms, get_all_terms
 import llm_extractor
-from fast_extractor import extract_candidates
 from technical_validator import validate_candidate, validate_llm_output
 from stopwords import check_rejection
+from fast_extractor import extract_candidates
+from technical_phrases import TECHNICAL_ENTITIES
 import knowledge_quality
 import time
+import sys
+import os
+import rapidfuzz
+
+sys.path.append(os.path.join(os.path.dirname(__file__), 'shared'))
+from protected_terms import PROTECTED_TERMS
+from technical_phrases import TECHNICAL_ENTITIES
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -58,14 +67,85 @@ def process_transcript(text, db_path):
     terms_dict = get_all_terms(db_path)
     db_ms = (time.perf_counter() - t0_db) * 1000
 
-    # 1. Regex Detection (Fast) & Candidate Extraction
+    # 0. Normalization
+    normalized_text = text
+    for phrase, replacement in PROTECTED_TERMS.items():
+        pattern = re.compile(r'\b' + re.escape(phrase) + r'\b', re.IGNORECASE)
+        normalized_text = pattern.sub(replacement, normalized_text)
+        
+    print(f"[NORMALIZED] {normalized_text}")
+    
+    # 1. Deterministic & Fuzzy Phrase Extraction
     t0_ext = time.perf_counter()
-    known_terms_regex = detect_terms(text, db_path, terms_dict=terms_dict)
-    found_regex_lower = {item['term'].lower() for item in known_terms_regex}
-    candidates = extract_candidates(text, db_path)
+    
+    masked_text = normalized_text
+    extracted_phrases = []
+    
+    # Add PROTECTED_TERMS values to the checking list
+    all_phrases = set(TECHNICAL_ENTITIES)
+    for v in PROTECTED_TERMS.values():
+        all_phrases.add(v)
+        
+    phrases_to_check = sorted(list(all_phrases), key=len, reverse=True)
+    
+    # EXACT & FUZZY MATCH
+    for n in [3, 2, 1]:
+        matched = True
+        while matched:
+            matched = False
+            words = [w for w in masked_text.split() if w.strip()]
+            chunks = [" ".join(words[i:i+n]) for i in range(len(words)-n+1)]
+            for chunk in chunks:
+                if not chunk.strip(): continue
+                
+                best_score = 0
+                best_entity = None
+                for entity in phrases_to_check:
+                    if chunk.lower() == entity.lower():
+                        best_score = 100
+                        best_entity = entity
+                        break
+                    score = rapidfuzz.fuzz.ratio(chunk.lower(), entity.lower())
+                    if score > best_score:
+                        best_score = score
+                        best_entity = entity
+                        
+                if best_score >= 85:
+                    if best_score == 100:
+                        print(f"[EXACT_MATCH] {best_entity}")
+                    else:
+                        print(f'[FUZZY_MATCH] "{chunk}" -> "{best_entity}"')
+                    extracted_phrases.append(best_entity)
+                    print(f"[ENTITY_CONSUMED] {best_entity}")
+                    
+                    # Consume the chunk
+                    chunk_pattern = re.compile(r'\b' + re.escape(chunk) + r'\b', re.IGNORECASE)
+                    masked_text = chunk_pattern.sub(lambda m: ' ' * len(m.group(0)), masked_text)
+                    matched = True
+                    break # Break to regenerate chunks since masked_text changed
+                
+    print(f"[FINAL_ENTITIES] {extracted_phrases}")
+            
+    # 2. Token-Based Fallback Extraction (Second Pass)
+    # fast_extractor and detect_terms will only see the text that wasn't consumed
+    token_candidates = extract_candidates(masked_text, db_path)
+    
+    # Merge candidates
+    candidates = extracted_phrases.copy()
+    for c in token_candidates:
+        if c not in candidates:
+            candidates.append(c)
+            
     ext_ms = (time.perf_counter() - t0_ext) * 1000
 
-    # Filtering Candidates
+    # 3. Database Match
+    t0_ext2 = time.perf_counter()
+    known_terms_regex, final_masked_text = detect_terms(masked_text, db_path, terms_dict=terms_dict)
+    found_regex_lower = {item['term'].lower() for item in known_terms_regex}
+    ext_ms2 = (time.perf_counter() - t0_ext2) * 1000
+    ext_ms += ext_ms2
+
+    # 4. Filtering Candidates
     t0_val = time.perf_counter()
     known_cache = set()
     for t, data in terms_dict.items():
@@ -82,7 +162,7 @@ def process_transcript(text, db_path):
             continue
             
         if t_lower in known_cache:
-            # Re-map to canonical
+            # It's a known term! We must add it manually to known_terms_regex
             canonical = None
             for db_term, data in terms_dict.items():
                 if t_lower == db_term.lower() or t_lower in [a.lower() for a in data["aliases"] if a]:
@@ -101,7 +181,10 @@ def process_transcript(text, db_path):
                 })
                 found_regex_lower.add(canonical.lower())
         else:
-            if validate_candidate(term):
+            is_valid, reason = check_rejection(term)
+            if is_valid:
+                print(f"[TOKEN_REJECTED] {term} -> {reason}")
+            elif validate_candidate(term):
                 if t_lower not in [c.lower() for c in unknown_candidates]:
                     unknown_candidates.append(term)
     val_ms1 = (time.perf_counter() - t0_val) * 1000

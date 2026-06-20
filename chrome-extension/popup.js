@@ -14,6 +14,10 @@ document.addEventListener('DOMContentLoaded', () => {
       document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
       btn.classList.add('active');
       document.getElementById(btn.getAttribute('data-target')).classList.add('active');
+      
+      if (btn.getAttribute('data-target') === 'tab-debug') {
+        refreshDebugState();
+      }
     });
   });
 
@@ -141,6 +145,24 @@ document.addEventListener('DOMContentLoaded', () => {
     
     return acc;
   }
+
+  // Feature: Debug Tab
+  const btnRefreshDebug = document.getElementById("btn-refresh-debug");
+  
+  function refreshDebugState() {
+    chrome.runtime.sendMessage({ action: "get_debug_state" }, (response) => {
+      if (response) {
+        document.getElementById("dbg-platform").textContent = response.platform || "None";
+        document.getElementById("dbg-status").textContent = response.monitorStatus || "Inactive";
+        document.getElementById("dbg-backend").textContent = response.backendStatus || "Unknown";
+        document.getElementById("dbg-terms").textContent = response.termsDetected || "0";
+        document.getElementById("dbg-latency").textContent = (response.apiLatency || 0) + "ms";
+        document.getElementById("dbg-caption").textContent = response.lastCaption || "Waiting for captions...";
+      }
+    });
+  }
+
+  btnRefreshDebug.addEventListener("click", refreshDebugState);
 
   function escapeHtml(unsafe) {
     if (!unsafe) return "";

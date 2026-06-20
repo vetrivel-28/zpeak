@@ -1,4 +1,0 @@
-Database Audit Report
-=====================
-
-No issues found! The database is clean.

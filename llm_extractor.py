@@ -4,6 +4,63 @@ from llm_service import generate
 
 logger = logging.getLogger(__name__)
 
+def extract_technical_terms(text: str) -> list:
+    if not text or not text.strip():
+        return []
+        
+    prompt = f"""You are a Technical Meeting Term Extraction Engine.
+
+Your job is to extract ONLY meaningful technical concepts, technologies, frameworks, programming languages, ML concepts, cloud services, databases, APIs, protocols, libraries, DevOps tools, software architecture terms, and engineering terminology.
+
+STRICT RULES:
+
+1. Extract complete phrases, never partial words.
+   * "LangGraph" -> valid
+   * "OpenTelemetry" -> valid
+   * "Random Forest" -> valid
+   * "Linear Regression" -> valid
+   * "Neural Network" -> valid
+   * "Convolutional Neural Network" -> valid
+   * "CrewAI" -> valid
+   * "FastAPI" -> valid
+   * "Kubernetes" -> valid
+
+2. Never split phrases.
+   * If "Random Forest" exists, do NOT return "Random" or "Forest".
+   * If "OpenTelemetry" exists, do NOT return "Telemetry" or "Telement".
+   * If "LangGraph" exists, do NOT return "Lang" or "Graph".
+   * If "Linear Regression" exists, do NOT return "Linear".
+
+3. Ignore conversational language.
+   Ignore: hello, hi, hey, thanks, okay, yesterday, today, tomorrow, morning, afternoon, evening, notes, meeting, discussion, project, task, work, issue, problem, fix, bug, update, guys, team, Rahul, names, greetings, filler words.
+
+4. Ignore common nouns unless they are part of a recognized technical term.
+   Reject: land, graph, audio, webcam, english, subject, plan, font, speaker, browser, array, northern, africa, mongolia.
+
+5. Prefer technical phrases over individual words.
+
+6. Machine Learning Concepts to recognize: Random Forest, Decision Tree, Logistic Regression, Linear Regression, KNN, SVM, XGBoost, LightGBM, CatBoost, Neural Network, Deep Learning, CNN, RNN, LSTM, Transformer, BERT, DistilBERT, NLP, Computer Vision
+
+7. Software Engineering Concepts to recognize: API, REST API, GraphQL, FastAPI, Flask, Django, React, Angular, Next.js, TypeScript, JavaScript, Python, Java, C++, Docker, Kubernetes, LangGraph, CrewAI, OpenTelemetry, Redis, PostgreSQL, MongoDB, Kafka, RabbitMQ
+
+8. Return ONLY JSON. Format: {{"technical_terms": ["Term 1", "Term 2"]}} If no technical terms exist: {{"technical_terms": []}}
+
+Input Text:
+{text}
+"""
+    response = generate(prompt, format_json=True)
+    if not response:
+        return []
+        
+    try:
+        data = json.loads(response)
+        if isinstance(data, dict) and "technical_terms" in data:
+            return data["technical_terms"]
+        return []
+    except json.JSONDecodeError:
+        logger.error("Failed to parse LLM extraction response.")
+        return []
+
 def batch_validate_and_define(candidates_list, transcript_context):
     """
     Takes a list of unknown candidates.

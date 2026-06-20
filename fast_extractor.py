@@ -52,16 +52,12 @@ def extract_candidates(text, db_path=None):
             candidates.add(h)
             
     # 3. Multi-word phrase matching (Corporate Jargon)
-    text_lower = text.lower()
     for jargon in CORPORATE_JARGON_DICT:
         # Simple word boundary check
         pattern = r'\b' + re.escape(jargon) + r'\b'
-        if re.search(pattern, text_lower):
-            # Try to extract the original casing if possible, otherwise use lower
-            match = re.search(pattern, text, re.IGNORECASE)
-            if match:
-                candidates.add(match.group(0))
-            else:
-                candidates.add(jargon)
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            # We found a match, extract the jargon in its found casing
+            candidates.add(match.group(0))
             
     return list(candidates)

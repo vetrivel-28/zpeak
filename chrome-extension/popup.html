@@ -19,6 +19,7 @@
   <div class="tabs">
     <button class="tab-btn active" data-target="tab-search">Search</button>
     <button class="tab-btn" data-target="tab-analyzer">Analyzer</button>
+    <button class="tab-btn" data-target="tab-debug">Debug</button>
   </div>
 
   <!-- Search Tab -->
@@ -45,6 +46,28 @@
 
     <div id="analyze-results" class="analyzer-results hidden">
       <!-- Collapsible cards rendered here -->
+    </div>
+  </div>
+
+  <!-- Debug Tab -->
+  <div id="tab-debug" class="tab-content">
+    <div class="result-container" style="font-family: monospace; font-size: 12px; line-height: 1.6;">
+      <div style="margin-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:8px;">
+        <span style="color:#94A3B8;">Platform:</span> <strong id="dbg-platform">None</strong><br>
+        <span style="color:#94A3B8;">Monitor Status:</span> <strong id="dbg-status">Inactive</strong><br>
+        <span style="color:#94A3B8;">Backend Status:</span> <strong id="dbg-backend">Unknown</strong><br>
+      </div>
+      <div style="margin-bottom:8px;">
+        <span style="color:#94A3B8;">Terms Detected:</span> <strong id="dbg-terms" style="color:#5EEAD4;">0</strong><br>
+        <span style="color:#94A3B8;">API Latency:</span> <strong id="dbg-latency">0ms</strong><br>
+      </div>
+      <div>
+        <span style="color:#94A3B8;">Last Caption Snippet:</span><br>
+        <div id="dbg-caption" style="background:rgba(0,0,0,0.3); padding:8px; border-radius:4px; margin-top:4px; color:#E2E8F0; min-height: 40px; word-break: break-all;">
+          Waiting for captions...
+        </div>
+      </div>
+      <button id="btn-refresh-debug" class="btn btn-primary full-width" style="margin-top: 12px;">Refresh Debug State</button>
     </div>
   </div>
 

@@ -40,16 +40,17 @@ def get_all_terms(db_path):
 def detect_terms(text, db_path, terms_dict=None):
     """
     Detects technical terms in the provided text.
-    Returns a list of dictionaries with matched terms and definitions.
+    Returns a tuple: (matched_terms, masked_text)
     """
     if not Path(db_path).exists():
         print(f"Error: Database not found at {db_path}")
-        return []
+        return [], text
 
     if terms_dict is None:
         terms_dict = get_all_terms(db_path)
         
     matched_terms = []
+    masked_text = text
 
     # Build a list of all matching targets (primary terms and aliases)
     search_targets = []
@@ -74,11 +75,10 @@ def detect_terms(text, db_path, terms_dict=None):
         canonical_term = item["canonical"]
         
         # Create a regex to match the term as a distinct word boundary
-        # re.escape is used to safely handle any special characters
-        pattern = r'\b' + re.escape(target_str.lower()) + r'\b'
+        pattern = re.compile(r'\b' + re.escape(target_str) + r'\b', re.IGNORECASE)
         
         # Check if the term exists in the text
-        if re.search(pattern, text_lower):
+        if pattern.search(masked_text):
             if canonical_term.lower() not in found_canonical_terms:
                 source = "Regex Match" if target_str.lower() == canonical_term.lower() else "Alias Match"
                 matched_terms.append({
@@ -91,11 +91,12 @@ def detect_terms(text, db_path, terms_dict=None):
                     "confidence": "High"
                 })
                 found_canonical_terms.add(canonical_term.lower())
+                print(f"[TOKEN_CONSUMED] DB Match: {canonical_term}")
                 
-                # Mask the matched target in the text to prevent nested matches
-                text_lower = re.sub(pattern, ' ' * len(target_str), text_lower)
+            # Mask the matched target in the text to prevent nested matches
+            masked_text = pattern.sub(lambda m: ' ' * len(m.group(0)), masked_text)
 
-    return matched_terms
+    return matched_terms, masked_text
 
 if __name__ == "__main__":
     # Define database path using pathlib
@@ -108,7 +109,7 @@ if __name__ == "__main__":
     print(f"Input text: '{sample_text}'\n")
     print("Detecting terms...\n")
     
-    results = detect_terms(sample_text, db_file)
+    results, _ = detect_terms(sample_text, db_file)
     
     # Print results in a structured JSON format
     if results:

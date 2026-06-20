@@ -75,6 +75,17 @@ CONVERSATION_WORDS = {
     "dataset balance", "notes", "share", "check", "issue", "problem", "task", "update"
 }
 
+GENERIC_NOUNS = {
+    "graph", "land", "telemetry", "learning", "machine", "cloud", "system", 
+    "project", "meeting", "subject", "plan", "font", "english",
+    "random", "boost", "model", "cluster", "pipeline", "dashboard",
+    "data", "rest", "deployment", "workflow", "system", "forest", "linear", "distal"
+}
+
+SHORT_WHITELIST = {
+    "api", "sql", "aws", "jwt", "cpu", "gpu", "ml", "ai", "nlp", "llm", "cnn", "rnn"
+}
+
 def check_rejection(term):
     """
     Checks if a term should be rejected and returns (is_rejected: bool, reason: str).
@@ -114,6 +125,12 @@ def check_rejection(term):
         return True, "common stopword"
     if clean_term in CONVERSATION_WORDS:
         return True, "conversation word"
+    if clean_term in GENERIC_NOUNS:
+        return True, "generic noun"
+        
+    # 6. Short Term Filter (Phase 9.4)
+    if len(clean_term) < 4 and clean_term not in SHORT_WHITELIST:
+        return True, "short generic term"
         
     return False, ""
 

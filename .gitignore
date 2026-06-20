@@ -1,19 +1,38 @@
-# Reports
-*_report.txt
-database_audit_report.txt
-before_after_report.txt
-
 # Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
 
-# Database backups
+# Virtual Environments
+venv/
+.venv/
+
+# Logs
+*.log
+
+# Reports
+*_report.txt
+test_report.md
+
+# Databases
+*.sqlite
+*.sqlite3
 *.db-shm
 *.db-wal
+
+# Caches
+.pytest_cache/
+.mypy_cache/
 
 # IDE
 .vscode/
 .idea/
 
-# Logs
-*.log
+# OS
+Thumbs.db
+.DS_Store
+
+# Environment
+.env
+.env.local
