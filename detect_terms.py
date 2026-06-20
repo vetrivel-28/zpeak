@@ -37,7 +37,7 @@ def get_all_terms(db_path):
     
     return terms_dict
 
-def detect_terms(text, db_path):
+def detect_terms(text, db_path, terms_dict=None):
     """
     Detects technical terms in the provided text.
     Returns a list of dictionaries with matched terms and definitions.
@@ -46,7 +46,9 @@ def detect_terms(text, db_path):
         print(f"Error: Database not found at {db_path}")
         return []
 
-    terms_dict = get_all_terms(db_path)
+    if terms_dict is None:
+        terms_dict = get_all_terms(db_path)
+        
     matched_terms = []
 
     # Build a list of all matching targets (primary terms and aliases)

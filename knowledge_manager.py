@@ -6,6 +6,8 @@ import llm_extractor
 from fast_extractor import extract_candidates
 from technical_validator import validate_candidate, validate_llm_output
 from stopwords import check_rejection
+import knowledge_quality
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -49,14 +51,22 @@ def process_transcript(text, db_path):
     """
     logger.info("Starting fast hybrid extraction...")
 
-    # 1. Regex Detection (Fast)
-    known_terms_regex = detect_terms(text, db_path)
-    found_regex_lower = {item['term'].lower() for item in known_terms_regex}
+    t_start = time.perf_counter()
 
-    # 2. Fast Candidate Extraction
-    candidates = extract_candidates(text, db_path)
-    
+    # Database Lookup (Once)
+    t0_db = time.perf_counter()
     terms_dict = get_all_terms(db_path)
+    db_ms = (time.perf_counter() - t0_db) * 1000
+
+    # 1. Regex Detection (Fast) & Candidate Extraction
+    t0_ext = time.perf_counter()
+    known_terms_regex = detect_terms(text, db_path, terms_dict=terms_dict)
+    found_regex_lower = {item['term'].lower() for item in known_terms_regex}
+    candidates = extract_candidates(text, db_path)
+    ext_ms = (time.perf_counter() - t0_ext) * 1000
+
+    # Filtering Candidates
+    t0_val = time.perf_counter()
     known_cache = set()
     for t, data in terms_dict.items():
         known_cache.add(t.lower())
@@ -94,17 +104,24 @@ def process_transcript(text, db_path):
             if validate_candidate(term):
                 if t_lower not in [c.lower() for c in unknown_candidates]:
                     unknown_candidates.append(term)
+    val_ms1 = (time.perf_counter() - t0_val) * 1000
 
     # 3. Batch LLM Processing
+    t0_llm = time.perf_counter()
     newly_learned = []
     unresolved_unknowns = []
+    llm_results = {}
 
     if unknown_candidates:
         logger.info(f"Batch validating {len(unknown_candidates)} candidates via LLM")
         llm_results = llm_extractor.batch_validate_and_define(unknown_candidates, text)
+    llm_ms = (time.perf_counter() - t0_llm) * 1000
         
-        known_cache_lower = {t.lower() for t in known_cache}
-        
+    t0_val2 = time.perf_counter()
+    save_ms = 0.0
+    known_cache_lower = {t.lower() for t in known_cache}
+    
+    if unknown_candidates:
         for term in unknown_candidates:
             if term in llm_results:
                 data = llm_results[term]
@@ -113,15 +130,21 @@ def process_transcript(text, db_path):
                 term_type = data.get("term_type", "Other")
                 difficulty = data.get("difficulty", "Intermediate")
                 
-                is_valid = validate_llm_output(
+                is_valid_technical = validate_llm_output(
                     term, definition, category, term_type, 
                     difficulty=difficulty, confidence="Medium", db_cache=known_cache_lower
                 )
+                is_valid_quality = knowledge_quality.validate_definition(term, definition, category)
+                is_valid_fake = knowledge_quality.validate_fake_term(term)
+                
+                is_valid = is_valid_technical and is_valid_quality and is_valid_fake
                 source = "AI Extraction"
                 
                 if is_valid:
                     confidence = "Medium"
+                    t0_save = time.perf_counter()
                     insert_new_term(term, definition, category, term_type, difficulty, db_path)
+                    save_ms += (time.perf_counter() - t0_save) * 1000
                 else:
                     confidence = "Low"
                     
@@ -137,6 +160,17 @@ def process_transcript(text, db_path):
                 })
             else:
                 unresolved_unknowns.append(term)
+                
+    val_ms2 = (time.perf_counter() - t0_val2) * 1000 - save_ms
+    total_ms = (time.perf_counter() - t_start) * 1000
+    
+    print("[PERF]")
+    print(f"Database: {db_ms:.0f} ms")
+    print(f"Extraction: {ext_ms:.0f} ms")
+    print(f"LLM: {llm_ms:.0f} ms")
+    print(f"Validation: {(val_ms1 + val_ms2):.0f} ms")
+    print(f"Save: {save_ms:.0f} ms")
+    print(f"Total: {total_ms:.0f} ms")
                 
     return {
         "known_terms": known_terms_regex,

@@ -27,5 +27,14 @@ AI-powered meeting transcript analyzer that detects technical terms, corporate j
 
 ```bash
 pip install -r requirements.txt
+```
+
+Run Streamlit:
+```bash
 streamlit run app.py
+```
+
+Run API:
+```bash
+uvicorn api.main:app --reload
 ```
