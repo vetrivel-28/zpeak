@@ -88,8 +88,38 @@ def process_transcript(text, db_path):
         
     phrases_to_check = sorted(list(all_phrases), key=len, reverse=True)
     
-    # EXACT & FUZZY MATCH
-    for n in [3, 2, 1]:
+    # Pass 1: EXACT MATCH
+    for n in [4, 3, 2, 1]:
+        matched = True
+        while matched:
+            matched = False
+            words = [w for w in masked_text.split() if w.strip()]
+            chunks = [" ".join(words[i:i+n]) for i in range(len(words)-n+1)]
+            for chunk in chunks:
+                if not chunk.strip(): continue
+                
+                best_entity = None
+                for entity in phrases_to_check:
+                    if chunk.lower() == entity.lower():
+                        best_entity = entity
+                        break
+                        
+                if best_entity:
+                    print("[EXACT_MATCH]")
+                    print(f"Input: \"{chunk}\"")
+                    print(f"Match: \"{best_entity}\"")
+                    print("Confidence: 100")
+                    extracted_phrases.append(best_entity)
+                    print(f"[ENTITY_CONSUMED] {best_entity}")
+                    
+                    # Consume the chunk
+                    chunk_pattern = re.compile(r'\b' + re.escape(chunk) + r'\b', re.IGNORECASE)
+                    masked_text = chunk_pattern.sub(lambda m: ' ' * len(m.group(0)), masked_text)
+                    matched = True
+                    break
+
+    # Pass 2: FUZZY MATCH
+    for n in [4, 3, 2, 1]:
         matched = True
         while matched:
             matched = False
@@ -101,20 +131,17 @@ def process_transcript(text, db_path):
                 best_score = 0
                 best_entity = None
                 for entity in phrases_to_check:
-                    if chunk.lower() == entity.lower():
-                        best_score = 100
-                        best_entity = entity
-                        break
                     score = rapidfuzz.fuzz.ratio(chunk.lower(), entity.lower())
                     if score > best_score:
                         best_score = score
                         best_entity = entity
                         
                 if best_score >= 85:
-                    if best_score == 100:
-                        print(f"[EXACT_MATCH] {best_entity}")
-                    else:
-                        print(f'[FUZZY_MATCH] "{chunk}" -> "{best_entity}"')
+                    score_int = int(round(best_score))
+                    print("[FUZZY_MATCH]")
+                    print(f"Input: \"{chunk}\"")
+                    print(f"Match: \"{best_entity}\"")
+                    print(f"Confidence: {score_int}")
                     extracted_phrases.append(best_entity)
                     print(f"[ENTITY_CONSUMED] {best_entity}")
                     
@@ -122,7 +149,13 @@ def process_transcript(text, db_path):
                     chunk_pattern = re.compile(r'\b' + re.escape(chunk) + r'\b', re.IGNORECASE)
                     masked_text = chunk_pattern.sub(lambda m: ' ' * len(m.group(0)), masked_text)
                     matched = True
-                    break # Break to regenerate chunks since masked_text changed
+                    break
+                elif best_score >= 75:
+                    score_int = int(round(best_score))
+                    print("[ENTITY_REJECTED]")
+                    print(f"Input: \"{chunk}\"")
+                    print(f"Match: \"{best_entity}\"")
+                    print(f"Confidence: {score_int}")
                 
     print(f"[FINAL_ENTITIES] {extracted_phrases}")
             
@@ -183,7 +216,7 @@ def process_transcript(text, db_path):
         else:
             is_valid, reason = check_rejection(term)
             if is_valid:
-                print(f"[TOKEN_REJECTED] {term} -> {reason}")
+                print(f"[ENTITY_REJECTED] {term} -> {reason}")
             elif validate_candidate(term):
                 if t_lower not in [c.lower() for c in unknown_candidates]:
                     unknown_candidates.append(term)
